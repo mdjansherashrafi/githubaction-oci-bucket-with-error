@@ -56,6 +56,17 @@ jobs:
         run: |
           date  # Check clock sync
           oci os ns get  # Test OCI access
+      - name: Simulate Empty File Upload
+        run: |
+          # Ensure the directory exists
+          mkdir -p large-files
+          
+          # Create an empty file (this will simulate the empty file upload)
+          touch large-files/empty-file.mp4
+          
+          # Confirm the file was created
+          ls -lh large-files/
+
 
       # Create an empty or corrupted file to simulate the issue
       - name: Create Empty File (Simulating the Error)
