@@ -1,0 +1,97 @@
+name: Upload Large Files to OCI with Missing Content-Length Header
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+
+env:
+  OCI_REGION: 'me-riyadh-1'  # Replace with your OCI region
+  OCI_NAMESPACE: 'axjejvuhn1me'  # Replace with your OCI namespace
+  OCI_BUCKET: 'githubaction-demo-1'  # Your OCI bucket name
+  MULTIPART_THRESHOLD: '52428800'  # 50MB threshold
+  OCI_CLI_SUPPRESS_FILE_PERMISSIONS_WARNING: 'True'  # Suppress permissions warning
+
+jobs:
+  upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Install Python and OCI CLI
+      - name: Install Python and pip
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 python3-pip
+          
+      - name: Install OCI CLI via pip (recommended)
+        run: |
+          python3 -m pip install oci-cli --upgrade
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          oci --version
+
+      # Configure OCI credentials (with secrets from GitHub)
+      - name: Configure OCI Credentials
+        run: |
+          mkdir -p ~/.oci
+          cat > ~/.oci/config <<EOF
+          [DEFAULT]
+          user=${{ secrets.OCI_USER_OCID }}
+          fingerprint=${{ secrets.OCI_FINGERPRINT }}
+          tenancy=${{ secrets.OCI_TENANCY_OCID }}
+          region=${{ env.OCI_REGION }}
+          key_file=~/.oci/oci_api_key.pem
+          pass_phrase=${{ secrets.OCI_KEY_PASSPHRASE }}
+          EOF
+          
+          cat > ~/.oci/oci_api_key.pem <<EOF
+          ${{ secrets.OCI_PRIVATE_KEY }}
+          OCI_API_KEY
+          EOF
+          
+          chmod 600 ~/.oci/oci_api_key.pem ~/.oci/config
+
+      # Verify authentication by listing namespaces
+      - name: Verify Authentication
+        run: |
+          date  # Check clock sync
+          oci os ns get  # Test OCI access
+
+      # Create an empty or corrupted file to simulate the issue
+      - name: Create Empty File (Simulating the Error)
+        run: |
+          echo "Simulating empty file upload to trigger Content-Length error."
+          touch large-files/empty-file.mp4  # This file will have a size of 0 bytes
+          if [ ! -f "large-files/empty-file.mp4" ]; then
+            echo "File not found!"
+            exit 1
+          fi
+
+      # Upload the empty file to OCI Bucket (This should cause the MissingContentLength error)
+      - name: Upload Empty File to OCI Bucket
+        run: |
+          # Path to the empty file you want to upload
+          FILE_PATH="large-files/empty-file.mp4"
+          
+          # Ensure the file exists in the repository
+          if [ ! -f "$FILE_PATH" ]; then
+            echo "File not found: $FILE_PATH"
+            exit 1
+          fi
+          
+          # Upload the empty file to the OCI bucket (this should cause the MissingContentLength error)
+          oci os object put \
+            --namespace $OCI_NAMESPACE \
+            --bucket-name $OCI_BUCKET \
+            --file $FILE_PATH \
+            --name $(basename $FILE_PATH) \
+            --force
+
+      # Verify the upload by listing the objects in the OCI bucket
+      - name: Verify Uploads
+        run: |
+          echo "Listing objects in OCI bucket to verify upload:"
+          oci os object list \
+            --namespace $OCI_NAMESPACE \
+            --bucket-name $OCI_BUCKET \
+            --output table
