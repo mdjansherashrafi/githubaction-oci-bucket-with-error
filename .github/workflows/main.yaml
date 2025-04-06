@@ -81,7 +81,7 @@ jobs:
         run: |
           echo "Uploading the file without Content-Length header"
           curl -X PUT -T large-files/corrupted-file.mp4 \
-          https://$OCI_BUCKET.$OCI_NAMESPACE.$OCI_REGION.oraclecloud.com \
+          "https://objectstorage.${{ env.OCI_REGION }}.oraclecloud.com/n/${{ env.OCI_NAMESPACE }}/b/${{ env.OCI_BUCKET }}/o/corrupted-file.mp4" \
           --header "Content-Type: application/octet-stream"  # Missing Content-Length
           echo "File uploaded without Content-Length header"
 
