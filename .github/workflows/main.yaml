@@ -1,4 +1,4 @@
-name: Upload Large Files to OCI with Missing Content-Length Header
+name: Upload Large Files to OCI
 
 on:
   workflow_dispatch:
@@ -46,7 +46,6 @@ jobs:
           
           cat > ~/.oci/oci_api_key.pem <<EOF
           ${{ secrets.OCI_PRIVATE_KEY }}
-          OCI_API_KEY
           EOF
           
           chmod 600 ~/.oci/oci_api_key.pem ~/.oci/config
@@ -56,47 +55,38 @@ jobs:
         run: |
           date  # Check clock sync
           oci os ns get  # Test OCI access
-      - name: Simulate Empty File Upload
+
+      # --- Simulate the Empty File Upload to Trigger Content-Length Error ---
+      - name: Simulate Empty File Upload to Trigger Content-Length Error
         run: |
+          echo "Simulating empty file upload to trigger Content-Length error."
+          
           # Ensure the directory exists
           mkdir -p large-files
           
-          # Create an empty file (this will simulate the empty file upload)
+          # Create an empty file
           touch large-files/empty-file.mp4
           
-          # Confirm the file was created
-          ls -lh large-files/
-
-
-      # Create an empty or corrupted file to simulate the issue
-      - name: Create Empty File (Simulating the Error)
-        run: |
-          echo "Simulating empty file upload to trigger Content-Length error."
-          touch large-files/empty-file.mp4  # This file will have a size of 0 bytes
+          # Check if file is created
           if [ ! -f "large-files/empty-file.mp4" ]; then
             echo "File not found!"
             exit 1
           fi
-
-      # Upload the empty file to OCI Bucket (This should cause the MissingContentLength error)
-      - name: Upload Empty File to OCI Bucket
-        run: |
-          # Path to the empty file you want to upload
-          FILE_PATH="large-files/empty-file.mp4"
           
-          # Ensure the file exists in the repository
-          if [ ! -f "$FILE_PATH" ]; then
-            echo "File not found: $FILE_PATH"
-            exit 1
-          fi
+          # Now we will upload the empty file with incorrect headers
+          echo "Uploading the empty file with missing Content-Length header"
           
-          # Upload the empty file to the OCI bucket (this should cause the MissingContentLength error)
+          # Simulate uploading the empty file without providing Content-Length (or wrong size)
+          # This command should trigger the MissingContentLength error
           oci os object put \
             --namespace $OCI_NAMESPACE \
             --bucket-name $OCI_BUCKET \
-            --file $FILE_PATH \
-            --name $(basename $FILE_PATH) \
-            --force
+            --file large-files/empty-file.mp4 \
+            --name empty-file.mp4 \
+            --force \
+            --content-length 0  # Explicitly setting a wrong content length can simulate the error
+          
+          echo "File uploaded (or failed) to OCI bucket"
 
       # Verify the upload by listing the objects in the OCI bucket
       - name: Verify Uploads
