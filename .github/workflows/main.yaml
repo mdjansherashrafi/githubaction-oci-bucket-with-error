@@ -59,9 +59,10 @@ jobs:
           date  # Check clock sync
           oci os ns get  # Test OCI access
 
-      # Create a corrupted file for upload (simulating metadata issues)
+      # Ensure large-files directory exists before creating the corrupted file
       - name: Create a corrupted file (simulated metadata issue)
         run: |
+          mkdir -p large-files  # Create the directory if it doesn't exist
           echo "Simulating corrupted file for upload"
           dd if=/dev/urandom of=large-files/corrupted-file.mp4 bs=1M count=5  # 5MB file with random data
           echo "Corrupted file created"
