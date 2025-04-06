@@ -73,7 +73,7 @@ jobs:
           echo "Simulating partial upload"
           split -b 1M large-files/corrupted-file.mp4 large-files/split-file-part-  # Split file into parts of 1MB
           # Upload the first part to simulate a partial upload
-          oci os object put --namespace $OCI_NAMESPACE --bucket-name $OCI_BUCKET --file large-files/split-file-part-aa --name split-file-part-aa
+          oci os object put --namespace $OCI_NAMESPACE --bucket-name $OCI_BUCKET --file large-files/split-file-part-aa --name split-file-part-aa --force
           echo "Partial file uploaded (simulating a failed or incomplete upload)"
 
       # Simulate missing Content-Length header during upload (this can trigger the error)
