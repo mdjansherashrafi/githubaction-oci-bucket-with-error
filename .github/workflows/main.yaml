@@ -3,7 +3,8 @@ name: Upload Large Files to OCI
 on:
   workflow_dispatch:
   push:
-    branches: [master]
+    branches:
+      - master
 
 env:
   OCI_REGION: 'me-riyadh-1'  # Replace with your OCI region
@@ -23,7 +24,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y python3 python3-pip
-          
+
       - name: Install OCI CLI via pip (recommended)
         run: |
           python3 -m pip install oci-cli --upgrade
@@ -43,11 +44,11 @@ jobs:
           key_file=~/.oci/oci_api_key.pem
           pass_phrase=${{ secrets.OCI_KEY_PASSPHRASE }}
           EOF
-          
+
           cat > ~/.oci/oci_api_key.pem <<EOF
           ${{ secrets.OCI_PRIVATE_KEY }}
           EOF
-          
+
           chmod 600 ~/.oci/oci_api_key.pem ~/.oci/config
 
       # Verify authentication by listing namespaces
@@ -56,33 +57,41 @@ jobs:
           date  # Check clock sync
           oci os ns get  # Test OCI access
 
-      # --- Simulate the Empty File Upload to Trigger Content-Length Error ---
+      # Simulate Empty File Upload to Trigger Content-Length Error
       - name: Simulate Empty File Upload to Trigger Content-Length Error
         run: |
-         echo "Simulating empty file upload to trigger Content-Length error."
-    
-      # Ensure the directory exists
-      mkdir -p large-files
-    
-      # Create an empty file
+          echo "Simulating empty file upload to trigger Content-Length error."
+          
+          # Ensure the directory exists
+          mkdir -p large-files
+          
+          # Create an empty file
           touch large-files/empty-file.mp4
-    
-      # Check if file is created
-    if [ ! -f "large-files/empty-file.mp4" ]; then
-      echo "File not found!"
-      exit 1
-    fi
-    
-    # Now we will upload the empty file, omitting the Content-Length option
-    echo "Uploading the empty file without Content-Length header"
-    
-    # Attempt to upload the empty file to simulate the MissingContentLength error
-    oci os object put \
-      --namespace $OCI_NAMESPACE \
-      --bucket-name $OCI_BUCKET \
-      --file large-files/empty-file.mp4 \
-      --name empty-file.mp4 \
-      --force
+          
+          # Check if file is created
+          if [ ! -f "large-files/empty-file.mp4" ]; then
+            echo "File not found!"
+            exit 1
+          fi
+          
+          # Now we will upload the empty file, omitting the Content-Length option
+          echo "Uploading the empty file without Content-Length header"
+          
+          # Attempt to upload the empty file to simulate the MissingContentLength error
+          oci os object put \
+            --namespace $OCI_NAMESPACE \
+            --bucket-name $OCI_BUCKET \
+            --file large-files/empty-file.mp4 \
+            --name empty-file.mp4 \
+            --force
 
-    echo "File uploaded (or failed) to OCI bucket"
+          echo "File uploaded (or failed) to OCI bucket"
 
+      # Verify the upload by listing the objects in the OCI bucket
+      - name: Verify Uploads
+        run: |
+          echo "Listing objects in OCI bucket to verify upload:"
+          oci os object list \
+            --namespace $OCI_NAMESPACE \
+            --bucket-name $OCI_BUCKET \
+            --output table
